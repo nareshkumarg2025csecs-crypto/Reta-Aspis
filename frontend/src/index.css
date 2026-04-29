@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #07080a;
+  --color-surface: #0e1016;
+  --color-surface-brighter: #13161f;
+  --color-accent: #00c8ff;
+  --color-accent-dim: rgba(0, 200, 255, 0.1);
+  --color-border: #1c2030;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-sans: "Syne", "Inter", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-white font-sans antialiased overflow-x-hidden;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-surface/80 backdrop-blur-xl border border-white/10;
+  }
+  
+  .scanner-beam {
+    background: linear-gradient(to bottom, transparent, var(--color-accent), transparent);
+    @apply absolute w-full h-[100px] opacity-20 pointer-events-none;
+    animation: scan 3s linear infinite;
+  }
+
+  @keyframes scan {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100vh); }
+  }
+
+  .grid-bg {
+    background-image: 
+      linear-gradient(rgba(28, 32, 48, 0.3) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(28, 32, 48, 0.3) 1px, transparent 1px);
+    background-size: 50px 50px;
+    @apply absolute inset-0 pointer-events-none;
+  }
+}
