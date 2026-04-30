@@ -14,6 +14,10 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.get('/', (req, res) => {
+  res.json({ status: "online", message: "Reta Aspis Forensic API is running." });
+});
+
 app.use('/', routes);
 
 app.listen(PORT, () => {
