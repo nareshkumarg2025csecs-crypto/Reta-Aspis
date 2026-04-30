@@ -40,7 +40,7 @@ export default function FakeDamage() {
     Object.keys(formData).forEach(key => data.append(key, formData[key]))
 
     try {
-      const response = await axios.post('/api/fake-damage', data, {
+      const response = await axios.post('http://localhost:5000/api/fake-damage', data, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       setResult(response.data)

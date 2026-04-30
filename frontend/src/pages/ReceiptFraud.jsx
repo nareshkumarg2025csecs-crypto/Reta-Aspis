@@ -39,7 +39,7 @@ export default function ReceiptFraud() {
     data.append('order_amount', formData.order_amount)
 
     try {
-      const response = await axios.post('/api/receipt-fraud', data, {
+      const response = await axios.post('http://localhost:5000/api/receipt-fraud', data, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       setResult(response.data)

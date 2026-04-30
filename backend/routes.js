@@ -25,59 +25,46 @@ const getActionFromScore = (score) => {
 router.post('/wardrobing', async (req, res) => {
   try {
     const { purchase_date, return_date, baseline_rate, buyer_return_count } = req.body;
-    let score = 100;
+    let score = 0; // Scoring start from zero
     const penaltyBreakdown = [];
 
-    // Step 1: Gap
+    // Step 1: Return Time Gap
     const gap = getDaysGap(purchase_date, return_date);
     if (gap > 4) {
-      score -= 24;
-      penaltyBreakdown.push({ check: 'Purchase-to-Return Interval', reason: `Gap is ${gap} days (> 4 days)`, points: 24 });
+      score += 30;
+      penaltyBreakdown.push({ check: 'Purchase-to-Return Interval', reason: `Gap is > 4 days (${gap} days). High Risk.`, points: 30 });
     } else if (gap > 2) {
-      score -= 10;
-      penaltyBreakdown.push({ check: 'Purchase-to-Return Interval', reason: `Gap is ${gap} days (> 2 days)`, points: 10 });
+      score += 20;
+      penaltyBreakdown.push({ check: 'Purchase-to-Return Interval', reason: `Gap is > 2 days (${gap} days). Moderate Risk.`, points: 20 });
     }
 
-    // Step 2: Calendar Event
-    const prompt = `Given the date range from ${purchase_date} to ${return_date}, check the Indian calendar. Are there any Indian public holidays (like Diwali, Holi, Eid, Christmas, Republic Day, Independence Day, Pongal, Navratri, Durga Puja, Onam) or weekends (Saturday/Sunday) within this date range? Reply only in this JSON format: { "has_festival": true/false, "has_weekend": true/false }`;
-    const geminiRes = await callGemini(prompt);
-    
-    if (geminiRes) {
-      const { has_festival, has_weekend } = geminiRes;
-      if (has_festival && has_weekend) {
-        score -= 24;
-        penaltyBreakdown.push({ check: 'Calendar Event Check', reason: 'Festival and weekend overlap detected', points: 24 });
-      } else if (has_festival) {
-        score -= 15;
-        penaltyBreakdown.push({ check: 'Calendar Event Check', reason: 'Festival overlap detected', points: 15 });
-      } else if (has_weekend) {
-        score -= 10;
-        penaltyBreakdown.push({ check: 'Calendar Event Check', reason: 'Weekend overlap detected', points: 10 });
+    // Step 2: Weekend Overlap Detection
+    const checkWeekendOverlap = (start, end) => {
+      let current = new Date(start);
+      const endDate = new Date(end);
+      while (current <= endDate) {
+        const day = current.getDay();
+        if (day === 0 || day === 6) return true; // 0 = Sunday, 6 = Saturday
+        current.setDate(current.getDate() + 1);
       }
+      return false;
+    };
+
+    const hasWeekend = checkWeekendOverlap(purchase_date, return_date);
+    if (hasWeekend) {
+      score += 25; // User requested: totally +25 points
+      penaltyBreakdown.push({ check: 'Weekend Overlap', reason: 'Time period occurs between Saturday and Sunday. Extra points added.', points: 25 });
     }
 
-    // Step 3: Baseline Rate
+    // Step 3: SKU Baseline Return Rate
     const rate = parseFloat(baseline_rate);
-    if (rate < 5) {
-      score -= 24;
-      penaltyBreakdown.push({ check: 'Baseline Rate', reason: `< 5% category baseline`, points: 24 });
-    } else if (rate < 20) {
-      score -= 15;
-      penaltyBreakdown.push({ check: 'Baseline Rate', reason: `< 20% category baseline`, points: 15 });
-    } else if (rate < 40) {
-      score -= 10;
-      penaltyBreakdown.push({ check: 'Baseline Rate', reason: `< 40% category baseline`, points: 10 });
+    if (rate < 20) {
+      score += 25; // User requested: less than 20 add +25 points
+      penaltyBreakdown.push({ check: 'Baseline Rate', reason: `SKU Return Rate < 20% (${rate}%). Flagged as Risky.`, points: 25 });
     }
 
-    // Step 4: Buyer Return History
-    if (buyer_return_count && parseInt(buyer_return_count) > 0) {
-      const count = parseInt(buyer_return_count);
-      const deduction = Math.min(count * 5, 25);
-      score -= deduction;
-      penaltyBreakdown.push({ check: 'Buyer Return History', reason: `${count} previous returns`, points: deduction });
-    }
-
-    score = Math.max(0, score);
+    // Step 4: Ensure Score bounds
+    score = Math.max(0, Math.min(100, score));
     const { level, action } = getActionFromScore(score);
 
     // AI Explanation

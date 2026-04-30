@@ -6,7 +6,7 @@ const apiKey = process.env.GEMINI_API_KEY || "dummy_key";
 const genAI = new GoogleGenerativeAI(apiKey);
 
 async function callGemini(prompt, retryCount = 0) {
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"];
   const modelName = models[retryCount % models.length];
 
   try {
