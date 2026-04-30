@@ -26,7 +26,7 @@ export default function FriendlyFraud() {
     setLoading(true)
     setResult(null)
     try {
-      const response = await axios.post('http://localhost:5000/api/friendly-fraud', formData)
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/friendly-fraud`, formData)
       setResult(response.data)
     } catch (error) {
       console.error(error)
