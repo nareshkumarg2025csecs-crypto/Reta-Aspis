@@ -12,6 +12,15 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use('/api', routes);
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Add a base route for testing
+app.get('/', (req, res) => {
+  res.json({ status: 'Reta Aspis API is running' });
 });
+
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
