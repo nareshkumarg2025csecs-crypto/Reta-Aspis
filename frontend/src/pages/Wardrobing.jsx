@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import api from '../api'
 import ResultDisplay from '../components/ResultDisplay'
 import { Shirt } from 'lucide-react'
@@ -105,8 +106,54 @@ export default function Wardrobing() {
       </div>
 
       {/* Result Panel */}
-      <div>
-        {result && <ResultDisplay result={result} />}
+      <div className="min-h-[400px] flex flex-col">
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div 
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="bg-surface border border-white/5 rounded-2xl p-12 flex flex-col items-center justify-center text-center space-y-6 h-full shadow-xl"
+            >
+              <div className="relative w-20 h-20">
+                <div className="absolute inset-0 border-4 border-accent/20 rounded-full" />
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0 border-4 border-transparent border-t-accent rounded-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-accent font-bold uppercase tracking-widest text-xs animate-pulse">Running Forensic Scan...</p>
+                <p className="text-[10px] text-gray-500 font-mono max-w-[250px] mx-auto leading-relaxed">
+                  Analyzing purchase intervals and cross-referencing calendar metadata for weekend patterns.
+                </p>
+                <p className="text-[9px] text-accent/40 font-mono mt-4 italic">
+                  Note: Initial analysis may take 30-40s as our AI core initializes.
+                </p>
+              </div>
+            </motion.div>
+          ) : result ? (
+            <motion.div
+              key="result"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <ResultDisplay result={result} />
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="bg-surface border border-white/5 rounded-2xl p-12 flex flex-col items-center justify-center text-center space-y-4 h-full shadow-xl"
+            >
+              <Shirt className="w-12 h-12 text-white/5" />
+              <p className="text-gray-500 text-sm font-medium">Enter order details to begin forensic analysis</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )
