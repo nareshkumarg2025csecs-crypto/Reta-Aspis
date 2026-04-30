@@ -255,6 +255,38 @@ export default function ReceiptFraud() {
                                 </div>
                             )}
 
+                            {/* Forensic Image Reversing Section */}
+                            <div className="space-y-4">
+                                <div className="flex items-center space-x-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest after:flex-1 after:h-[1px] after:bg-white/5">
+                                    <span>Forensic Analysis Details</span>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <div className="text-[9px] font-bold text-accent/70 uppercase tracking-widest px-1">Original Analysis</div>
+                                        <div className="p-3 rounded-lg bg-white/[0.03] border border-white/5 text-[10px] font-mono text-gray-400 leading-relaxed min-h-[80px]">
+                                            {result.retailer_receipt_description}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="text-[9px] font-bold text-amber-500/70 uppercase tracking-widest px-1">Submitted Analysis</div>
+                                        <div className="p-3 rounded-lg bg-white/[0.03] border border-white/5 text-[10px] font-mono text-gray-400 leading-relaxed min-h-[80px]">
+                                            {result.customer_receipt_description}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="text-[9px] font-bold text-red-400 uppercase tracking-widest px-1 flex items-center">
+                                        <Search className="w-3 h-3 mr-1" />
+                                        Forensic Reversing Process
+                                    </div>
+                                    <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/[0.02] font-mono text-[11px] leading-relaxed text-gray-300 italic">
+                                        {result.forensic_reversing_analysis}
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="space-y-2">
                                 <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">AI Analysis Summary</div>
                                 <div className="p-4 rounded-xl border border-white/5 bg-white/5 font-mono text-[11px] leading-relaxed text-gray-400">

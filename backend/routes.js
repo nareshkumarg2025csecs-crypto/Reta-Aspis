@@ -531,44 +531,43 @@ router.post('/receipt-fraud', upload.fields([{ name: 'retailer_receipt' }, { nam
     const retailerText = await extractText(retailerFile);
     const customerText = await extractText(customerFile);
 
-    const prompt = `You are a senior receipt fraud detection expert for an e-commerce platform. You will receive TWO receipt images:
-    - IMAGE 1: The RETAILER'S ORIGINAL receipt issued by the seller (ground truth)
-    - IMAGE 2: The CUSTOMER'S CLAIMED receipt submitted for the return claim
+    const prompt = `You are a forensic document examiner. You will receive TWO receipt images:
+    - IMAGE 1: The RETAILER'S ORIGINAL receipt (The Source of Truth)
+    - IMAGE 2: The CUSTOMER'S SUBMITTED receipt (The potentially manipulated document)
 
-    Your job is to meticulously compare every single field and detect ANY tampering, editing, or manipulation.
+    Perform an "Image Reversing" Forensic Process:
+    1. READ both images in full detail.
+    2. DESCRIBE Image 1 (Retailer): Extract all key text, layout features, fonts, and totals.
+    3. DESCRIBE Image 2 (Customer): Extract the same from the customer's version.
+    4. COMPARE & REVERSE: Identify exactly where the customer's image deviates from the original. Look for "reversed" logic, altered digits, font mismatches, and visual artifacts of digital tampering (blurring, patching).
 
     Original Order Amount on file: ₹${order_amount}
 
-    CAREFULLY CHECK THESE FIELDS (12-Point Forensic Checklist):
-    1. Total amount / Grand total (even ₹0.01 difference is fraud)
-    2. Invoice number or Order ID
-    3. Invoice date and Due date  
-    4. Individual line item prices and quantities
-    5. Subtotal and tax amounts
-    6. Customer name and billing address
-    7. Company/seller name and address
-    8. Any barcodes or QR codes present (mismatch or missing)
-    9. Font consistency (look for mismatched weights, styles, or kerning suggesting local edits)
-    10. Blurriness or pixelation around text (suggesting "patching" or digital overlay)
-    11. Digit substitutions (e.g., 2 changed to 7, or 0 changed to 8)
-    12. Visual artifacts like "halo" effects or cursor remnants near amounts
+    FORENSIC CHECKLIST:
+    - Digit Manipulation: Was a '1' changed to a '7'? Was a '0' added?
+    - Content Reversing: Did they change the items to higher-value products?
+    - Visual Artifacts: Check for inconsistent pixel noise or "ghosting" around the total amount.
+    - Alignment: Are the characters perfectly aligned, or is there a 1-2 pixel shift suggesting an overlay?
 
-    Respond ONLY with a valid JSON object:
+    Respond ONLY with this valid JSON object:
     {
       "tampering_detected": boolean,
       "confidence": number (0-100),
-      "verdict": "RECEIPTS MATCH" | "TAMPERING DETECTED" | "SUSPICIOUS - MANUAL REVIEW",
+      "verdict": "MATCHED" | "TAMPERED" | "SUSPICIOUS",
+      "retailer_receipt_description": "Detailed description of the original receipt content.",
+      "customer_receipt_description": "Detailed description of the submitted receipt content.",
+      "forensic_reversing_analysis": "Expert breakdown of exactly what was modified or 'reversed' in the customer's version.",
       "mismatches": [
         {
           "field": "string",
           "original_value": "string",
           "customer_value": "string", 
           "severity": "HIGH" | "MEDIUM" | "LOW",
-          "note": "brief explanation"
+          "note": "Forensic observation"
         }
       ],
-      "summary": "3-4 sentence plain English explanation of findings for the retailer",
-      "recommended_action": "detailed next step for the retailer"
+      "summary": "3 sentence summary of the forensic reversal findings.",
+      "recommended_action": "Next steps for the retailer."
     }`;
 
     const filesToPass = [
