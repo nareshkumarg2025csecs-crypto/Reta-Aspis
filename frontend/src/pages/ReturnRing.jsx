@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import api from '../api'
+import axios from 'axios'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Users, 
@@ -101,7 +101,7 @@ export default function ReturnRing() {
     setResult(null);
 
     try {
-      const response = await api.post('/return-ring', {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/return-ring`, {
         ...formData,
         timestamps: formData.timestamps.filter(t => t)
       });
