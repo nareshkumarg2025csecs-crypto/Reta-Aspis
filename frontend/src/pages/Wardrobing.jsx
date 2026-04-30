@@ -22,7 +22,7 @@ export default function Wardrobing() {
     setLoading(true)
     setResult(null)
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/wardrobing`, formData)
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/wardrobing`, formData)
       setResult(response.data)
     } catch (error) {
       console.error(error)

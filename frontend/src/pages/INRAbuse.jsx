@@ -26,7 +26,7 @@ export default function INRAbuse() {
     setLoading(true)
     setResult(null)
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/inr-abuse`, formData)
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/inr-abuse`, formData)
       setResult(response.data)
     } catch (error) {
       console.error(error)
