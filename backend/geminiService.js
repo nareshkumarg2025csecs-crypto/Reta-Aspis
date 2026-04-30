@@ -6,7 +6,7 @@ const apiKey = process.env.GEMINI_API_KEY || "dummy_key";
 const genAI = new GoogleGenerativeAI(apiKey);
 
 async function callGemini(prompt, retryCount = 0) {
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"];
+  const models = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
   const modelName = models[retryCount % models.length];
 
   try {
@@ -24,7 +24,7 @@ async function callGemini(prompt, retryCount = 0) {
 }
 
 async function callGeminiVision(prompt, mimeType, base64Data, retryCount = 0) {
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+  const models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.5-flash-8b"];
   const modelName = models[retryCount % models.length];
 
   try {
@@ -42,7 +42,7 @@ async function callGeminiVision(prompt, mimeType, base64Data, retryCount = 0) {
 }
 
 async function callGeminiVisionMultiple(prompt, files, retryCount = 0) {
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+  const models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.5-flash-8b"];
   const modelName = models[retryCount % models.length];
 
   try {
