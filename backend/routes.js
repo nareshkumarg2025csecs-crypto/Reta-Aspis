@@ -1,11 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+const Anthropic = require('@anthropic-ai/sdk');
 const exifr = require('exifr');
 const pdfParse = require('pdf-parse');
 const { callGemini, callGeminiVision, callGeminiVisionMultiple } = require('./geminiService');
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ 
+  dest: 'uploads/',
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+const client = new Anthropic({ 
+  apiKey: process.env.ANTHROPIC_API_KEY 
+});
 
 // Helper to calculate days between dates
 const getDaysGap = (date1, date2) => {
@@ -513,72 +523,229 @@ router.post('/friendly-fraud', async (req, res) => {
   }
 });
 
-// 5. Receipt Fraud
-router.post('/receipt-fraud', upload.fields([{ name: 'retailer_receipt' }, { name: 'customer_receipt' }]), async (req, res) => {
+// 5. Receipt Fraud (Rewritten for Claude Forensic Analysis)
+router.post('/receipt-fraud', upload.fields([
+  { name: 'retailer_receipt', maxCount: 1 },
+  { name: 'customer_receipt', maxCount: 1 }
+]), async (req, res) => {
+  console.log('Receipt fraud API called');
+  console.log('Files received:', Object.keys(req.files || {}));
+  console.log('Body:', req.body);
+
+  if (!req.files || !req.files['retailer_receipt'] || !req.files['customer_receipt']) {
+    return res.status(400).json({ success: false, error: "Both receipts must be uploaded" });
+  }
+
+  const retailerFile = req.files['retailer_receipt'][0];
+  const customerFile = req.files['customer_receipt'][0];
+
   try {
-    const retailerFile = req.files['retailer_receipt'][0];
-    const customerFile = req.files['customer_receipt'][0];
-    const { order_amount } = req.body;
+    // STEP 2 — Read both files as base64
+    const retailerBase64 = fs.readFileSync(retailerFile.path).toString('base64');
+    const customerBase64 = fs.readFileSync(customerFile.path).toString('base64');
+    
+    const retailerMime = retailerFile.mimetype || 'image/jpeg';
+    const customerMime = customerFile.mimetype || 'image/jpeg';
 
-    const extractText = async (file) => {
-      if (file.mimetype === 'application/pdf') {
-        const data = await pdfParse(file.buffer);
-        return data.text;
-      }
-      return ""; // Images handled by Vision
-    };
+    console.log('Sending to Claude API...');
+    console.log('Retailer image size:', retailerBase64.length, 'chars');
+    console.log('Customer image size:', customerBase64.length, 'chars');
 
-    const retailerText = await extractText(retailerFile);
-    const customerText = await extractText(customerFile);
+    const systemPrompt = `You are an expert forensic document analyst 
+    specialising in receipt and invoice fraud detection for e-commerce 
+    platforms. You have exceptional ability to detect even the smallest 
+    alterations in financial documents — including single digit changes, 
+    font inconsistencies, and pixel-level manipulation signs.
+    
+    Your job is to compare two receipt images with extreme precision and 
+    identify ANY discrepancy, no matter how small. Even a difference of 
+    ₹1 or $0.01 in any field is considered HIGH severity fraud evidence.
+    
+    You must always respond with valid JSON only. No explanation outside 
+    the JSON object. No markdown formatting. No code blocks.`;
 
-    const prompt = `You are a forensic document examiner. You will receive TWO receipt images:
-    - IMAGE 1: The RETAILER'S ORIGINAL receipt (The Source of Truth)
-    - IMAGE 2: The CUSTOMER'S SUBMITTED receipt (The potentially manipulated document)
-
-    Perform an "Image Reversing" Forensic Process:
-    1. READ both images in full detail.
-    2. DESCRIBE Image 1 (Retailer): Extract all key text, layout features, fonts, and totals.
-    3. DESCRIBE Image 2 (Customer): Extract the same from the customer's version.
-    4. COMPARE & REVERSE: Identify exactly where the customer's image deviates from the original. Look for "reversed" logic, altered digits, font mismatches, and visual artifacts of digital tampering (blurring, patching).
-
-    Original Order Amount on file: ₹${order_amount}
-
-    FORENSIC CHECKLIST:
-    - Digit Manipulation: Was a '1' changed to a '7'? Was a '0' added?
-    - Content Reversing: Did they change the items to higher-value products?
-    - Visual Artifacts: Check for inconsistent pixel noise or "ghosting" around the total amount.
-    - Alignment: Are the characters perfectly aligned, or is there a 1-2 pixel shift suggesting an overlay?
-
-    Respond ONLY with this valid JSON object:
+    const userPrompt = `I am giving you TWO receipt images to compare:
+    - IMAGE 1: The RETAILER'S ORIGINAL receipt (the ground truth)
+    - IMAGE 2: The CUSTOMER'S CLAIMED receipt (possibly tampered)
+    
+    The retailer says the original order amount was: 
+    ${req.body.order_amount || 'Not provided — extract from Image 1'}
+    
+    PERFORM THIS EXACT ANALYSIS IN ORDER:
+    
+    ANALYSIS 1 — FIELD-BY-FIELD COMPARISON:
+    Extract and compare EVERY visible field including:
+    - Total amount / Grand total (flag ANY difference even ₹1)
+    - Subtotal amount
+    - Tax amount and tax percentage
+    - Individual line item names, quantities, and unit prices
+    - Invoice number / Order ID
+    - Invoice date and due date
+    - Customer name and billing address
+    - Company / Seller name and address  
+    - GST number or tax registration number
+    - Payment terms
+    - Any barcode or QR code (present in one but not other = fraud)
+    - Font style consistency (mixed fonts in same field = editing software)
+    
+    ANALYSIS 2 — IMAGE MANIPULATION DETECTION:
+    Look carefully at Image 2 for these tampering signs:
+    - Any region that looks blurry or has different image quality 
+      compared to surrounding area (sign of content replacement)
+    - Numbers or text that appear to have slightly different font 
+      weight, size, or baseline alignment than surrounding text
+    - Any area with unusual JPEG compression artifacts around numbers
+      (caused by re-saving after editing in Photoshop/GIMP)
+    - Color or brightness inconsistency in specific text regions
+    - Any cursor artifact, selection highlight, or copy-paste marker
+    - Digits that look like they were placed over existing digits
+    
+    ANALYSIS 3 — STRUCTURAL INTEGRITY:
+    - Does Image 2 appear to be a photograph of Image 1 that was then
+      digitally altered? (Look for perspective distortion + clean edits)
+    - Are there any fields missing in Image 2 that exist in Image 1?
+    - Does the overall layout match or are sections shifted/resized?
+    
+    IMPORTANT RULES:
+    - If you find ANY amount difference, no matter how small → 
+      tampering_detected = true, severity = HIGH
+    - If image manipulation signs are present → 
+      tampering_detected = true
+    - Only return tampering_detected = false if ALL fields match 
+      perfectly AND no manipulation signs found
+    - Never guess or assume a match — if you cannot read a field 
+      clearly in either image, report it as "unreadable" in mismatches
+    
+    Respond ONLY with this JSON (no other text):
     {
-      "tampering_detected": boolean,
-      "confidence": number (0-100),
-      "verdict": "MATCHED" | "TAMPERED" | "SUSPICIOUS",
-      "retailer_receipt_description": "Detailed description of the original receipt content.",
-      "customer_receipt_description": "Detailed description of the submitted receipt content.",
-      "forensic_reversing_analysis": "Expert breakdown of exactly what was modified or 'reversed' in the customer's version.",
+      "tampering_detected": true or false,
+      "confidence": number from 0 to 100,
+      "verdict": one of: "RECEIPTS MATCH" or "TAMPERING DETECTED" or "SUSPICIOUS - MANUAL REVIEW REQUIRED",
+      "image_manipulation_detected": true or false,
+      "image_manipulation_details": "description of what was found or null",
       "mismatches": [
         {
-          "field": "string",
-          "original_value": "string",
-          "customer_value": "string", 
-          "severity": "HIGH" | "MEDIUM" | "LOW",
-          "note": "Forensic observation"
+          "field": "exact field name",
+          "original_value": "value from retailer receipt",
+          "customer_value": "value from customer receipt",
+          "severity": "HIGH" or "MEDIUM" or "LOW",
+          "note": "specific explanation of why this is suspicious"
         }
       ],
-      "summary": "3 sentence summary of the forensic reversal findings.",
-      "recommended_action": "Next steps for the retailer."
+      "matching_fields": ["list of field names that match perfectly"],
+      "summary": "3-4 sentence plain English explanation of findings for the retailer. Be specific about what was found.",
+      "recommended_action": "specific action the retailer should take",
+      "fraud_probability": "LOW" or "MEDIUM" or "HIGH" or "CRITICAL"
     }`;
 
-    const filesToPass = [
-      { base64Data: retailerFile.buffer.toString('base64'), mimeType: retailerFile.mimetype },
-      { base64Data: customerFile.buffer.toString('base64'), mimeType: customerFile.mimetype }
-    ];
+    const response = await client.messages.create({
+      model: 'claude-3-5-sonnet-20241022', // Updated to a valid high-performance model
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: retailerMime,
+                data: retailerBase64
+              }
+            },
+            {
+              type: 'text',
+              text: 'This is IMAGE 1: The RETAILER ORIGINAL receipt.'
+            },
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: customerMime,
+                data: customerBase64
+              }
+            },
+            {
+              type: 'text',
+              text: 'This is IMAGE 2: The CUSTOMER CLAIMED receipt.'
+            },
+            {
+              type: 'text',
+              text: userPrompt
+            }
+          ]
+        }
+      ]
+    });
 
-    const result = await callGeminiVisionMultiple(prompt, filesToPass);
-    res.json(result || { tampering_detected: false, confidence: 0, summary: 'API call failed.' });
+    console.log('Claude response received');
+    const rawText = response.content[0].text;
+    console.log('Raw response length:', rawText.length);
+
+    const cleanText = rawText
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
+    
+    let result;
+    try {
+      result = JSON.parse(cleanText);
+    } catch (parseError) {
+      console.error('AI returned unparseable response:', rawText);
+      return res.status(500).json({
+        success: false,
+        error: 'AI returned unparseable response',
+        raw_response: rawText.substring(0, 500),
+        tampering_detected: null,
+        confidence: 0,
+        verdict: 'ERROR - MANUAL REVIEW REQUIRED'
+      });
+    }
+
+    // CRITICAL: Never let a 0% confidence show as "MATCH"
+    if (result.confidence === 0 || result.confidence === null) {
+      result.verdict = 'ERROR - MANUAL REVIEW REQUIRED';
+      result.recommended_action = 'API returned 0% confidence. Do NOT approve this return. Manually verify both receipts.';
+    }
+    
+    if (!result.verdict) {
+      result.verdict = result.tampering_detected ? 'TAMPERING DETECTED' : 'RECEIPTS MATCH';
+    }
+
+    console.log('Parsed result:', JSON.stringify(result, null, 2));
+
+    // Cleanup
+    try {
+      fs.unlinkSync(retailerFile.path);
+      fs.unlinkSync(customerFile.path);
+    } catch (e) {
+      console.log('Could not delete temp files:', e.message);
+    }
+
+    return res.json({ success: true, ...result });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Receipt fraud API error:', error.message);
+    console.error('Error type:', error.constructor.name);
+    console.error('Full error:', error);
+
+    try {
+      if (fs.existsSync(retailerFile.path)) fs.unlinkSync(retailerFile.path);
+      if (fs.existsSync(customerFile.path)) fs.unlinkSync(customerFile.path);
+    } catch (e) {}
+
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+      error_type: error.constructor.name,
+      tampering_detected: null,
+      confidence: 0,
+      verdict: 'API ERROR - DO NOT APPROVE',
+      recommended_action: 'API call failed. Do NOT approve this return automatically. Manually compare both receipts before proceeding.',
+      mismatches: [],
+      summary: 'The AI analysis could not be completed due to an API error. Reason: ' + error.message
+    });
   }
 });
 
