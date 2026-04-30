@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import axios from 'axios'
+import api from '../api'
 import { FileText, Upload, CheckCircle, AlertTriangle, Search, ShieldAlert } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -39,7 +39,7 @@ export default function ReceiptFraud() {
     data.append('order_amount', formData.order_amount)
 
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/receipt-fraud`, data, {
+      const response = await api.post('/receipt-fraud', data, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       setResult(response.data)

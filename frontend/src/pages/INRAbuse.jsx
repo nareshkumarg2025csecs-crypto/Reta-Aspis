@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import axios from 'axios'
+import api from '../api'
 import ResultDisplay from '../components/ResultDisplay'
 import { Box } from 'lucide-react'
 
@@ -26,7 +26,7 @@ export default function INRAbuse() {
     setLoading(true)
     setResult(null)
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/inr-abuse`, formData)
+      const response = await api.post('/inr-abuse', formData)
       setResult(response.data)
     } catch (error) {
       console.error(error)
